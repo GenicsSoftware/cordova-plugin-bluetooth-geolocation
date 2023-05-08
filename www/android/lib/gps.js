@@ -16,7 +16,7 @@
   function updateState(state, data) {
     
     // Skip update if data is void
-    if (data['type'] === 'RMC' && data['status'] !== 'A' || data['type'] === 'GGA' && data['quality'] === null) {
+    if (data['type'] === 'RMC' && (data['status'] !== 'A' && data['status'] !== 'active') || data['type'] === 'GGA' && data['quality'] === null) {
       return;
     }
 
@@ -24,7 +24,7 @@
       state['time'] = data['time'];
       state['lat'] = data['lat'];
       state['lon'] = data['lon'];
-      
+
       state['lastFix'] = Date.now(); // Check data.quality==fix maybe?
     }
 
@@ -337,7 +337,7 @@
     // GPS DOP and active satellites
     'GSA': function(str, gsa) {
 
-      if (gsa.length !== 19) {
+      if (gsa.length !== 19 && gsa.length !== 20) {
         throw 'Invalid GSA length: ' + str;
       }
 
@@ -380,7 +380,7 @@
     // Recommended Minimum data for gps
     'RMC': function(str, rmc) {
 
-      if (rmc.length !== 13 && rmc.length !== 14) {
+      if (rmc.length !== 13 && rmc.length !== 14 && rmc.length !== 15) {
         throw 'Invalid RMC length: ' + str;
       }
 
@@ -402,7 +402,7 @@
        (12) = NMEA 2.3 introduced FAA mode indicator (A=Autonomous, D=Differential, E=Estimated, N=Data not valid)
        12   = Checksum
        */
-      
+
       // Throw packet away if status!='A'?
 
       return {
@@ -413,7 +413,7 @@
         'speed': parseKnots(rmc[7]),
         'heading': parseNumber(rmc[8]),
         'variation': parseRMCVariation(rmc[10], rmc[11]),
-        'faa': rmc.length === 14 ? parseFAA(rmc[12]) : null
+        'faa': (rmc.length === 14 || rmc.length === 15) ? parseFAA(rmc[12]) : null
       };
     },
     // Track info
@@ -468,7 +468,7 @@
     // satelites in view
     'GSV': function(str, gsv) {
 
-      if (gsv.length < 9 || gsv.length % 4 !== 1) {
+      if (gsv.length < 9 || (gsv.length % 4 !== 1 && gsv.length != 22)) {
         throw 'Invalid GSV length: ' + str;
       }
 
@@ -492,16 +492,19 @@
 
       for (var i = 4; i < gsv.length - 1; i += 4) {
 
-        var prn = parseNumber(gsv[i]);
-        var snr = parseNumber(gsv[i + 3]);
+        if(i + 3 < gsv.length){
 
-        sats.push({
-          'prn': prn,
-          'elevation': parseNumber(gsv[i + 1]),
-          'azimuth': parseNumber(gsv[i + 2]),
-          'snr': snr,
-          'status': prn !== null ? (snr !== null ? 'tracking' : 'in view') : null
-        });
+          var prn = parseNumber(gsv[i]);
+          var snr = parseNumber(gsv[i + 3]);
+
+          sats.push({
+            'prn': prn,
+            'elevation': parseNumber(gsv[i + 1]),
+            'azimuth': parseNumber(gsv[i + 2]),
+            'snr': snr,
+            'status': prn !== null ? (snr !== null ? 'tracking' : 'in view') : null
+          });
+        }
       }
 
       return {

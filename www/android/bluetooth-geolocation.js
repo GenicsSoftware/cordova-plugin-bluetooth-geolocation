@@ -161,6 +161,7 @@ function initInternalGPS() {
 function initExternalGPS(device) {
     var gps = new GPS(),
         callbacks = {};
+    var default_options = {};
 
     gps.on('data', onUpdate);
 
@@ -172,6 +173,7 @@ function initExternalGPS(device) {
     }
 
     function watchPosition(onSuccess, onError, opts) {
+        default_options = opts;
         return createCallback(onSuccess, onError);
     }
 
@@ -233,6 +235,12 @@ function initExternalGPS(device) {
             return;
         }
 
+
+        var resolution = 3;
+        if(!(default_options.resolution== null || default_options.resolution=="")){
+            resolution = parseFloat(default_options.resolution)/100;
+        }
+
         var position = new Position(
             {
                 'latitude': gps.state.lat,
@@ -241,10 +249,10 @@ function initExternalGPS(device) {
                 'heading': gps.state.heading,
                 // Convert knots to m/s
                 'velocity': gps.state.speed && gps.state.speed * 0.514444,
-                
-                // Guess 7.8 meters 95% interval as base accuracy
-                'accuracy': gps.state.hdop && gps.state.hdop * 4,
-                'verticalAccuracy': gps.state.vdop && gps.state.vdop * 4 // ?
+
+                // ~~Guess 7.8 meters 95% interval as base accuracy~~
+                'accuracy': gps.state.hdop * resolution,
+                'verticalAccuracy': gps.state.vdop * resolution // ?
             },
             gps.state.time.getTime()
         );
